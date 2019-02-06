@@ -2,7 +2,7 @@ language: python
 python:
   - '3.6'
 env:
-  - DOCKER_IMAGE=jeffrow/nginx-saml-proxy
+  - DOCKER_IMAGE=jeffrouw/nginx-saml-proxy
 install:
   - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
   - export TAG=$(git describe --tags)
