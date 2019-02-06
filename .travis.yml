@@ -4,7 +4,7 @@ python:
 env:
   - DOCKER_IMAGE=jeffrow/nginx-saml-proxy
 install:
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
   - export TAG=$(git describe --tags)
   - if docker pull "$DOCKER_IMAGE" ; then export BUILD_OPTS=--cache-from="$DOCKER_IMAGE" ; fi
 script:
