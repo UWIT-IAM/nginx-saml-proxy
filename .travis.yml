@@ -8,7 +8,7 @@ install:
   - export TAG=$(git describe --tags)
   - if docker pull "$DOCKER_IMAGE" ; then export BUILD_OPTS=--cache-from="$DOCKER_IMAGE" ; fi
 script:
-  - docker build $BUILD_OPTS -t "$DOCKER_IMAGE" || travis_terminate 1
+  - docker build $BUILD_OPTS -t "$DOCKER_IMAGE" . || travis_terminate 1
   - docker tag "$DOCKER_IMAGE:$TAG"
 deploy:
   skip_cleanup: true
