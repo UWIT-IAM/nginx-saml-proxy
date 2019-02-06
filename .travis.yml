@@ -15,5 +15,5 @@ deploy:
   provider: script
   script: docker push "$DOCKER_IMAGE:$TAG" && docker push "$DOCKER_IMAGE"
   on:
-    branch: test-deploy
+    tags: true
 
