@@ -1,0 +1,19 @@
+language: python
+python:
+  - '3.6'
+env:
+  - DOCKER_IMAGE=jeffrouw/nginx-saml-proxy
+install:
+  - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
+  - export TAG=$(git describe --tags)
+  - if docker pull "$DOCKER_IMAGE" ; then export BUILD_OPTS=--cache-from="$DOCKER_IMAGE" ; fi
+script:
+  - docker build $BUILD_OPTS -t "$DOCKER_IMAGE" . || travis_terminate 1
+  - docker tag "$DOCKER_IMAGE" "$DOCKER_IMAGE:$TAG"
+deploy:
+  skip_cleanup: true
+  provider: script
+  script: docker push "$DOCKER_IMAGE:$TAG" && docker push "$DOCKER_IMAGE"
+  on:
+    tags: true
+
