@@ -1,2 +1,2 @@
 flask
-uw-saml[python3-saml]
+uw-saml[python3-saml]>=1.0.3
