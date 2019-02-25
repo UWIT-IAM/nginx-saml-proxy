@@ -23,4 +23,16 @@ location /saml/ {
     proxy_set_header X-Saml-Acs /saml/login;
     proxy_pass http://saml:5000/;
 }
+
+location @error401 {
+    return 302 https://$http_host/saml/login?url=$request_uri;
+}
 ```
+
+## SECRET_KEY
+
+This app wants an environment variable `SECRET_KEY`, which should be a secure,
+randomly-generated string. Otherwise, we generate one on the fly, which only
+works long as the app is running, and won't work in a distributed environment.
+SECRET_KEY is used to sign cookies, so setting a new key effectively
+invalidates all existing sessions.

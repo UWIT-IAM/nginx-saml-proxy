@@ -5,20 +5,21 @@ import uw_saml2
 from urllib.parse import urljoin
 from datetime import timedelta
 import os
-import uuid
+import secrets
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
 if os.environ.get('SECRET_KEY'):
     app.secret_key = os.environ['SECRET_KEY']
 else:
     app.logger.error('Generating burner SECRET_KEY for demo purposes')
-    app.secret_key = str(uuid.uuid1())
+    app.secret_key = secrets.token_urlsafe(32)
 app.config.update(
     SESSION_COOKIE_NAME='_saml_session',
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=True,
-    PERMANENT_SESSION_LIFETIME=timedelta(minutes=10)  # TODO: refine this
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=12)
 )
+
 
 @app.route('/status')
 @app.route('/status/group/<group>')
@@ -35,7 +36,7 @@ def status(group=None):
     if not userid:
         abort(401)
     if group and group not in groups:
-        abort(403)    
+        abort(403)
     headers = {'X-Saml-User': userid,
                'X-Saml-Groups': ':'.join(groups)}
     txt = f'Logged in as: {userid}\nGroups: {str(groups)}'
@@ -73,3 +74,11 @@ def login():
 def logout():
     session.clear()
     return 'Logged out'
+
+
+@app.route('/')
+def healthz():
+    """Return a 200 along with some useful links."""
+    return '''
+    <p><a href="login">Sign in</a></p><p><a href="logout">Logout</a></p>
+    '''
