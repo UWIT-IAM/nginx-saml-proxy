@@ -1,0 +1,13 @@
+version: '3'
+services:
+  saml:
+    build: .
+    image: nginx-saml-proxy
+    volumes:
+      - ./app.py:/app/app.py
+  nginx:
+    build: test/nginx
+    image: mynginx
+    ports: ["443:443"]
+    volumes:
+      - ./test/nginx/server.conf:/etc/nginx/conf.d/server.conf
