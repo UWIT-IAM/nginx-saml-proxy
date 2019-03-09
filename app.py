@@ -29,13 +29,16 @@ def status(group=None):
     403 if a group was requested that the user is not a member of, or 200
     if the user is authenticated.
 
-        group - a UW Group the user must be a member of.
+    group - a UW Group the user must be a member of. An SP must be registered
+        to receive that group.
     """
     userid = session.get('userid')
     groups = session.get('groups', [])
     if not userid:
         abort(401)
     if group and group not in groups:
+        message = f"{userid} not a member of {group} or SP can't receive it"
+        app.logger.error(message)
         abort(403)
     headers = {'X-Saml-User': userid,
                'X-Saml-Groups': ':'.join(groups)}
@@ -43,21 +46,41 @@ def status(group=None):
     return Response(txt, status=200, headers=headers)
 
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """
-    Return a SAML Request redirect, or process a SAML Response, depending
-    on whether GET or POST.
-    """
-    session.clear()
-    args = {
+def _saml_args():
+    """Get entity_id and acs_url from request.headers."""
+    return {
         'entity_id': request.headers['X-Saml-Entity-Id'],
         'acs_url': urljoin(request.url_root, request.headers['X-Saml-Acs'])
     }
-    if request.method == 'GET':
-        args['return_to'] = request.args.get('url', None)
-        return redirect(uw_saml2.login_redirect(**args))
 
+
+@app.route('/login/')
+@app.route('/login/<path:return_to>')
+def login_redirect(return_to=''):
+    """
+    Redirect to the IdP for SAML initiation.
+    
+    return_to - the path to redirect back to after authentication. This and
+        the request.query_string are set on the SAML RelayState.
+    """
+    query_string = '?' + request.query_string.decode()
+    if query_string == '?':
+        query_string = ''
+    return_to = f'/{return_to}{query_string}'
+    args = _saml_args()
+    return redirect(uw_saml2.login_redirect(return_to=return_to, **args))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """
+    Process a SAML Response, and set the uwnetid and groups on the session.
+    """
+    session.clear()
+    if request.method == 'GET':
+        return login_redirect()
+
+    args = _saml_args()
     attributes = uw_saml2.process_response(request.form, **args)
 
     session['userid'] = attributes['uwnetid']
@@ -80,5 +103,7 @@ def logout():
 def healthz():
     """Return a 200 along with some useful links."""
     return '''
-    <p><a href="login">Sign in</a></p><p><a href="logout">Logout</a></p>
+    <p><a href="login">Sign in</a></p>
+    <p><a href="status">Status</a></p>
+    <p><a href="logout">Logout</a></p>
     '''
