@@ -7,7 +7,7 @@ from datetime import timedelta
 import os
 import secrets
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 if os.environ.get('SECRET_KEY'):
     app.secret_key = os.environ['SECRET_KEY']
 else:
