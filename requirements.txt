@@ -1,2 +1,3 @@
+Werkzeug>=0.15
 flask
 uw-saml[python3-saml]>=1.0.3
