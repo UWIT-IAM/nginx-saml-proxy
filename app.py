@@ -22,19 +22,27 @@ app.config.update(
 
 
 @app.route('/status')
+@app.route('/status/2fa')
 @app.route('/status/group/<group>')
+@app.route('/status/group/<group>/2fa')
 def status(group=None):
     """
     Report current authentication status. Return 401 if not authenticated,
     403 if a group was requested that the user is not a member of, or 200
-    if the user is authenticated.
+    if the user is authenticated. Presence of /2fa in the url also enforces
+    that 2FA authentication occurred and will return a 401 otherwise.
 
     group - a UW Group the user must be a member of. An SP must be registered
         to receive that group.
     """
     userid = session.get('userid')
     groups = session.get('groups', [])
-    if not userid:
+    wants_2fa = '2fa' in request.path.split('/')
+    has_2fa = session.get('has_2fa', False)
+    if not userid or (wants_2fa and not has_2fa):
+        if wants_2fa:
+            app.logger.error('setting that we want 2FA')
+            session['wants_2fa'] = True
         abort(401)
     if group and group not in groups:
         message = f"{userid} not a member of {group} or SP can't receive it"
@@ -42,7 +50,7 @@ def status(group=None):
         abort(403)
     headers = {'X-Saml-User': userid,
                'X-Saml-Groups': ':'.join(groups)}
-    txt = f'Logged in as: {userid}\nGroups: {str(groups)}'
+    txt = f'Logged in as: {userid}\nGroups: {str(groups)}\n2FA: {has_2fa}'
     return Response(txt, status=200, headers=headers)
 
 
@@ -59,6 +67,8 @@ def _saml_args():
 def login_redirect(return_to=''):
     """
     Redirect to the IdP for SAML initiation.
+    2FA is triggered by presence of session variable 'wants_2fa', which gets
+    set in a status check.
     
     return_to - the path to redirect back to after authentication. This and
         the request.query_string are set on the SAML RelayState.
@@ -68,6 +78,8 @@ def login_redirect(return_to=''):
         query_string = ''
     return_to = f'/{return_to}{query_string}'
     args = _saml_args()
+    if session.get('wants_2fa'):
+        args['two_factor'] = True
     return redirect(uw_saml2.login_redirect(return_to=return_to, **args))
 
 
@@ -85,6 +97,7 @@ def login():
 
     session['userid'] = attributes['uwnetid']
     session['groups'] = attributes.get('groups', [])
+    session['has_2fa'] = attributes.get('two_factor')
     app.logger.info(attributes)
     relay_state = request.form.get('RelayState')
     if relay_state and relay_state.startswith('/'):
