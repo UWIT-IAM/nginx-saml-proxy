@@ -15,6 +15,13 @@ location / {
     proxy_pass http://secure:5000/;
 }
 
+# user needs 2FA
+location /2fa {
+    auth_request /saml/status/2fa;
+    error_page 401 = @2fa_required;
+    alias /usr/share/nginx/html;
+}
+
 location /saml/ { 
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -27,6 +34,10 @@ location /saml/ {
 
 location @login_required {
     return 302 https://$http_host/saml/login$request_uri;
+}
+
+location @2fa_required {
+    return 302 https://$http_host/saml/2fa$request_uri;
 }
 ```
 

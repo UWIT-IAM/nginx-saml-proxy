@@ -25,6 +25,7 @@ app.config.update(
 @app.route('/status/2fa')
 @app.route('/status/group/<group>')
 @app.route('/status/group/<group>/2fa')
+@app.route('/status/2fa/group/<group>')
 def status(group=None):
     """
     Report current authentication status. Return 401 if not authenticated,
@@ -40,17 +41,16 @@ def status(group=None):
     wants_2fa = '2fa' in request.path.split('/')
     has_2fa = session.get('has_2fa', False)
     if not userid or (wants_2fa and not has_2fa):
-        if wants_2fa:
-            app.logger.error('setting that we want 2FA')
-            session['wants_2fa'] = True
         abort(401)
     if group and group not in groups:
         message = f"{userid} not a member of {group} or SP can't receive it"
         app.logger.error(message)
         abort(403)
+    str_2fa = str(has_2fa).lower()
     headers = {'X-Saml-User': userid,
-               'X-Saml-Groups': ':'.join(groups)}
-    txt = f'Logged in as: {userid}\nGroups: {str(groups)}\n2FA: {has_2fa}'
+               'X-Saml-Groups': ':'.join(groups),
+               'X-Saml-2fa': str_2fa}
+    txt = f'Logged in as: {userid}\nGroups: {str(groups)}\n2FA: {str_2fa}'
     return Response(txt, status=200, headers=headers)
 
 
@@ -64,6 +64,8 @@ def _saml_args():
 
 @app.route('/login/')
 @app.route('/login/<path:return_to>')
+@app.route('/2fa/')
+@app.route('/2fa/<path:return_to>')
 def login_redirect(return_to=''):
     """
     Redirect to the IdP for SAML initiation.
@@ -78,7 +80,7 @@ def login_redirect(return_to=''):
         query_string = ''
     return_to = f'/{return_to}{query_string}'
     args = _saml_args()
-    if session.get('wants_2fa'):
+    if request.path.startswith('/2fa/'):
         args['two_factor'] = True
     return redirect(uw_saml2.login_redirect(return_to=return_to, **args))
 
