@@ -26,9 +26,6 @@ location /saml/ {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Saml-Entity-Id https://samldemo.iamdev.s.uw.edu/saml;
-    # acs - post-back url registered with the IdP.
-    proxy_set_header X-Saml-Acs /saml/login;
     proxy_pass http://saml:5000/;
 }
 
@@ -50,3 +47,50 @@ randomly-generated string. Otherwise, we generate one on the fly, which only
 works as long as the app is running, and won't work in a distributed environment.
 SECRET_KEY is used to sign cookies, so setting a new key effectively
 invalidates all existing sessions.
+
+
+## Service Provider (SP) Entity ID and ACS URL
+
+There are two ways to declare your SP entity-id and acs-url. With both of
+these, the `X-Forwarded-` headers listed are crucial.
+
+### By inference
+
+With this the saml proxy will make assumptions that the request URL and proxy
+path are registered as an SP.
+
+If host https://example.com has the following proxy config...
+
+```
+location /saml/ {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Prefix /saml/;
+    proxy_pass http://saml:5000/;
+  }
+```
+
+Then the SP entity-id to register is `https://example.com/saml` and the ACS
+endpoint to register is `https://example.com/saml/login`.
+
+### Explicitly
+
+You can also declare these items explicitly by passing them in as headers...
+
+```
+location /saml/ {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Prefix /saml/;
+    proxy_set_header X-Saml-Entity-Id https://samldemo.iamdev.s.uw.edu/saml;
+    proxy_set_header X-Saml-Acs /saml/login;
+    proxy_pass http://saml:5000/;
+}
+```
+
+You typically won't need to explicitly declare `X-Saml-Acs`. `X-Saml-Entity-Id`
+may need to be declared if for any reason the entity-id doesn't match with how
+we infer it, such as with an existing entity-id, or when multiple hosts
+share a single Entity ID.
