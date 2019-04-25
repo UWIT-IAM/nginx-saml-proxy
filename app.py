@@ -1,13 +1,14 @@
 from flask import Flask, Response, request, session, abort, redirect
 import flask
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
 import uw_saml2
 from urllib.parse import urljoin
 from datetime import timedelta
 import os
 import secrets
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_prefix=1)
+POSTBACK_ROUTE = '/login'
 if os.environ.get('SECRET_KEY'):
     app.secret_key = os.environ['SECRET_KEY']
 else:
@@ -56,10 +57,13 @@ def status(group=None):
 
 def _saml_args():
     """Get entity_id and acs_url from request.headers."""
-    return {
-        'entity_id': request.headers['X-Saml-Entity-Id'],
-        'acs_url': urljoin(request.url_root, request.headers['X-Saml-Acs'])
-    }
+    entity_id = request.url_root[:-1]  # remove trailing slash
+    acs_url = urljoin(request.url_root, POSTBACK_ROUTE[1:])
+    if 'X-Saml-Entity-Id' in request.headers:
+        entity_id = request.headers['X-Saml-Entity-Id']
+    if 'X-Saml-Acs' in request.headers:
+        acs_url = urljoin(request.url_root, request.headers['X-Saml-Acs'])
+    return dict(entity_id=entity_id, acs_url=acs_url)
 
 
 @app.route('/login/')
@@ -75,6 +79,7 @@ def login_redirect(return_to=''):
     return_to - the path to redirect back to after authentication. This and
         the request.query_string are set on the SAML RelayState.
     """
+    app.logger.error(f'URL ROOT {request.url_root}')
     query_string = '?' + request.query_string.decode()
     if query_string == '?':
         query_string = ''
@@ -85,7 +90,7 @@ def login_redirect(return_to=''):
     return redirect(uw_saml2.login_redirect(return_to=return_to, **args))
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route(POSTBACK_ROUTE, methods=['GET', 'POST'])
 def login():
     """
     Process a SAML Response, and set the uwnetid and groups on the session.
