@@ -16,4 +16,4 @@ WORKDIR /app
 COPY . /app
 ENV FLASK_APP=app.py
 
-CMD ["flask", "run", "--host=0.0.0.0"]
+CMD ["gunicorn", "--worker-class", "eventlet", "--bind", ":5000", "app:app"]

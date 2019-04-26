@@ -1,4 +1,5 @@
 from flask import Flask, Response, request, session, abort, redirect
+from flask.logging import default_handler
 import flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 import uw_saml2
@@ -6,6 +7,19 @@ from urllib.parse import urljoin
 from datetime import timedelta
 import os
 import secrets
+import logging
+
+
+def configure_logging():
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    level = logging.DEBUG
+    if gunicorn_logger:
+        level = gunicorn_logger.level
+    logging.getLogger().setLevel(level)
+    logging.getLogger('uw_saml2').addHandler(default_handler)
+
+
+configure_logging()
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_prefix=1)
 POSTBACK_ROUTE = '/login'
@@ -22,7 +36,7 @@ app.config.update(
 )
 
 
-@app.route('/status')
+@app.route('/status')  # if we add any more options then refactor all this.
 @app.route('/status/2fa')
 @app.route('/status/group/<group>')
 @app.route('/status/group/<group>/2fa')
@@ -79,7 +93,6 @@ def login_redirect(return_to=''):
     return_to - the path to redirect back to after authentication. This and
         the request.query_string are set on the SAML RelayState.
     """
-    app.logger.error(f'URL ROOT {request.url_root}')
     query_string = '?' + request.query_string.decode()
     if query_string == '?':
         query_string = ''
@@ -105,7 +118,6 @@ def login():
     session['userid'] = attributes['uwnetid']
     session['groups'] = attributes.get('groups', [])
     session['has_2fa'] = attributes.get('two_factor')
-    app.logger.info(attributes)
     relay_state = request.form.get('RelayState')
     if relay_state and relay_state.startswith('/'):
         return redirect(urljoin(request.url_root, request.form['RelayState']))
