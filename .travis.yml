@@ -2,9 +2,9 @@ language: python
 python:
   - '3.6'
 env:
-  - DOCKER_IMAGE=jeffrouw/nginx-saml-proxy
+  - DOCKER_DOMAIN=docker.pkg.github.com DOCKER_IMAGE=docker.pkg.github.com/uwit-iam/nginx-saml-proxy/nginx-saml-proxy
 install:
-  - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
+  - echo "$DOCKER_PASSWORD" | docker login ${DOCKER_DOMAIN} --username "$DOCKER_USERNAME" --password-stdin
   - export TAG=$(git describe --tags)
   - if docker pull "$DOCKER_IMAGE" ; then export BUILD_OPTS=--cache-from="$DOCKER_IMAGE" ; fi
 script:
