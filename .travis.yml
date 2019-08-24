@@ -2,7 +2,7 @@ language: python
 python:
   - '3.6'
 env:
-  - DOCKER_DOMAIN=docker.pkg.github.com DOCKER_IMAGE=docker.pkg.github.com/uwit-iam/nginx-saml-proxy/nginx-saml-proxy
+  - DOCKER_DOMAIN=docker.io DOCKER_IMAGE=uwiam/nginx-saml-proxy
 install:
   - echo "$DOCKER_PASSWORD" | docker login ${DOCKER_DOMAIN} --username "$DOCKER_USERNAME" --password-stdin
   - export TAG=$(git describe --tags)
