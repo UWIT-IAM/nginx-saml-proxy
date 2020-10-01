@@ -1,6 +1,7 @@
 from flask import Flask, Response, request, session, abort, redirect
 from flask.logging import default_handler
 import flask
+from werkzeug.exceptions import Unauthorized, Forbidden
 from werkzeug.middleware.proxy_fix import ProxyFix
 import uw_saml2
 from urllib.parse import urljoin
@@ -36,6 +37,10 @@ app.config.update(
 )
 
 
+def wants_json(request):
+    return "application/json" in request.accept_mimetypes.values()
+
+
 @app.route('/status')  # if we add any more options then refactor all this.
 @app.route('/status/2fa')
 @app.route('/status/group/<group>')
@@ -56,15 +61,22 @@ def status(group=None):
     wants_2fa = '2fa' in request.path.split('/')
     has_2fa = session.get('has_2fa', False)
     if not userid or (wants_2fa and not has_2fa):
-        abort(401)
+        raise Unauthorized
     if group and group not in groups:
         message = f"{userid} not a member of {group} or SP can't receive it"
         app.logger.error(message)
-        abort(403)
+        raise Forbidden
     str_2fa = str(has_2fa).lower()
-    headers = {'X-Saml-User': userid,
-               'X-Saml-Groups': ':'.join(groups),
-               'X-Saml-2fa': str_2fa}
+    if wants_json(request):
+        return jsonify({
+            "user": userid,
+            "groups": groups,
+            "two_factor": has_2fa
+        })
+    else:
+        headers = {'X-Saml-User': userid,
+                   'X-Saml-Groups': ':'.join(groups),
+                   'X-Saml-2fa': str_2fa}
     txt = f'Logged in as: {userid}\nGroups: {str(groups)}\n2FA: {str_2fa}'
     return Response(txt, status=200, headers=headers)
 
@@ -139,3 +151,12 @@ def healthz():
     <p><a href="status">Status</a></p>
     <p><a href="logout">Logout</a></p>
     '''
+
+
+@app.errorhandler(Unauthorized)
+@app.errorhandler(Forbidden)
+def error_handler(e):
+    if wants_json(request):
+        return flask.jsonify(error=str(e)), e.code
+    else:
+        return e
