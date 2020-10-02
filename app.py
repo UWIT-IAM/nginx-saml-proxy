@@ -1,6 +1,7 @@
 from flask import Flask, Response, request, session, abort, redirect
 from flask.logging import default_handler
 import flask
+import flask.json
 from werkzeug.exceptions import Unauthorized, Forbidden
 from werkzeug.middleware.proxy_fix import ProxyFix
 import uw_saml2
@@ -67,17 +68,18 @@ def status(group=None):
         app.logger.error(message)
         raise Forbidden
     str_2fa = str(has_2fa).lower()
+    headers = {'X-Saml-User': userid,
+               'X-Saml-Groups': ':'.join(groups),
+               'X-Saml-2fa': str_2fa}
     if wants_json(request):
-        return jsonify({
+        txt = flask.json.dumps({
             "user": userid,
             "groups": groups,
             "two_factor": has_2fa
         })
+        headers['Content-Type'] = 'application/json'
     else:
-        headers = {'X-Saml-User': userid,
-                   'X-Saml-Groups': ':'.join(groups),
-                   'X-Saml-2fa': str_2fa}
-    txt = f'Logged in as: {userid}\nGroups: {str(groups)}\n2FA: {str_2fa}'
+        txt = f'Logged in as: {userid}\nGroups: {str(groups)}\n2FA: {str_2fa}'
     return Response(txt, status=200, headers=headers)
 
 
