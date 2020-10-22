@@ -5,7 +5,7 @@ import flask.json
 from werkzeug.exceptions import Unauthorized, Forbidden
 from werkzeug.middleware.proxy_fix import ProxyFix
 import uw_saml2
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from datetime import timedelta
 import os
 import secrets
@@ -105,12 +105,29 @@ def login_redirect(return_to=''):
     set in a status check.
     
     return_to - the path to redirect back to after authentication. This and
-        the request.query_string are set on the SAML RelayState.
+        the request.query_string are set on the SAML RelayState. return_to is
+        specified this way to support usage where there is no control over the
+        query string.
+
+    If query field 'rd' is found, it is assumed to be the redirect path, overriding any
+        path supplied in the URI. This is for compatibility with Kubernetes Ingress NGINX.
+        Only one form of return_to should be used, ie if using 'rd' don't also set URI return_to.    
     """
-    query_string = '?' + request.query_string.decode()
+    
+    if 'rd' in request.args:
+        rd_parts = urlparse(request.args['rd'])
+        if return_to:
+            message = f"return_to supplied in both URI (/{return_to}) and 'rd' query string field ({rd_parts.path}), using rd value"
+            app.logger.warning(message)
+        query_string = '?' + rd_parts.query
+        return_to = rd_parts.path
+    else:
+        query_string = '?' + request.query_string.decode()
+        return_to = '/' + return_to
+
     if query_string == '?':
         query_string = ''
-    return_to = f'/{return_to}{query_string}'
+    return_to = f'{return_to}{query_string}'
     args = _saml_args()
     if request.path.startswith('/2fa/'):
         args['two_factor'] = True
