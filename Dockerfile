@@ -1,4 +1,4 @@
-FROM python:3.7-slim
+FROM python:3.11-slim
 
 RUN apt-get update && \
     apt-get install -y libxmlsec1-dev build-essential libxmlsec1 libxmlsec1-openssl pkg-config && \
@@ -11,6 +11,9 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 RUN pip install -U -r requirements.txt
+
+# patch for gunicorn and eventlet
+COPY new_geventlet.py /usr/local/lib/python3.11/site-packages/gunicorn/workers/geventlet.py
 
 WORKDIR /app
 COPY . /app
