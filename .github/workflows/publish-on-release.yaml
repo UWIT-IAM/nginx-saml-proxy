@@ -1,0 +1,51 @@
+# loosley based on https://docs.github.com/en/actions/publishing-packages/publishing-docker-images#publishing-images-to-github-packages
+#
+# a push to "/refs/heads/releases/v1" results in a tag of "releases-v1" per https://github.com/docker/metadata-action#usage
+
+name: Create and publish a Docker image on release
+
+on:
+  push:
+    branches: ['release']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image-to-ghcr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Login to ghcr.io Container registry
+        # should this be pinned?
+        # https://github.com/docker/login-action
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Extract metadata (tags + labels) for Docker
+        id: meta
+        # should this be pinned?
+        # https://github.com/docker/metadata-action
+        uses: docker/metadata-action@v4.4.0
+        with:
+          context: images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        # should this be pinned?
+        # https://github.com/docker/build-push-action
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.output.labels }}
