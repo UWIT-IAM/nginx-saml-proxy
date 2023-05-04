@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# for dependabot
+LABEL org.opencontainers.image.source="https://github.com/docker-library/python/tree/master/3.11/slim-bullseye"
+
 RUN apt-get update && \
     apt-get install -y libxmlsec1-dev build-essential libxmlsec1 libxmlsec1-openssl pkg-config && \
     pip install -U xmlsec && \
