@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # for dependabot
 LABEL org.opencontainers.image.source="https://github.com/docker-library/python/tree/master/3.11/slim-bullseye"
