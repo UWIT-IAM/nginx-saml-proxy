@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: us-docker.pkg.dev/uwit-mci-iam/containers
-  IMAGE_NAME: ${{ github.repository }}
+  OWNER_IMAGE: ${{ github.repository }}
 
 jobs:
   build-and-push-image-to-gar:
@@ -24,6 +24,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Compute repository name
+        id: image_name
+        run: |
+          # GH=uwit-iam/nginx-saml-proxy; echo ${GH#*/} returns "nginx-saml-proxy"
+          echo "IMAGE_NAME=${OWNER_IMAGE#*/}" >> $GITHUB_OUTPUT
+
       - name: Auth to Cloud
         uses: 'uwit-iam/action-auth-artifact-registry@main'
         with:
@@ -35,12 +41,12 @@ jobs:
         # https://github.com/docker/metadata-action
         uses: docker/metadata-action@v5.5.1
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.IMAGE_NAME }}
 
       - name: Build and push Docker image
         # should this be pinned?
         # https://github.com/docker/build-push-action
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v6.7.0
         with:
           context: .
           push: true
