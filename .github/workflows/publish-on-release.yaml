@@ -7,6 +7,7 @@ name: Create and publish a Docker image on release
 on:
   push:
     branches: ['release']
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
